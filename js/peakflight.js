@@ -1,0 +1,138 @@
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+const levelElement = document.getElementById('level');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Spel Variabelen
+let score = 0;
+let upgradeLevel = 1;
+let gameActive = true;
+
+// Speler (Vliegtuig)
+const player = {
+    x: 100,
+    y: canvas.height / 2,
+    width: 50,
+    height: 30,
+    speed: 5,
+    color: '#FF4444'
+};
+
+// Arrays voor objecten
+const obstacles = [];
+const upgrades = [];
+const keys = {};
+
+// Input detectie
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+function createObstacle() {
+    const size = Math.random() * 50 + 20;
+    obstacles.push({
+        x: canvas.width,
+        y: Math.random() * (canvas.height - size),
+        width: size,
+        height: size,
+        speed: 4 + (score / 10), // Wordt sneller naarmate je scoort
+        color: '#555'
+    });
+}
+
+function createUpgrade() {
+    upgrades.push({
+        x: canvas.width,
+        y: Math.random() * (canvas.height - 30),
+        width: 25,
+        height: 25,
+        color: '#FFD700' // Goud
+    });
+}
+
+function update() {
+    if (!gameActive) return;
+
+    // Beweging speler
+    if (keys['ArrowUp'] && player.y > 0) player.y -= player.speed;
+    if (keys['ArrowDown'] && player.y < canvas.height - player.height) player.y += player.speed;
+    if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+    if (keys['ArrowRight'] && player.x < canvas.width / 2) player.x += player.speed;
+
+    // Obstakels beheren
+    if (Math.random() < 0.02) createObstacle();
+    if (Math.random() < 0.005) createUpgrade();
+
+    obstacles.forEach((obs, index) => {
+        obs.x -= obs.speed;
+        // Collision check
+        if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
+            player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+            gameOver();
+        }
+        // Verwijder als buiten beeld
+        if (obs.x + obs.width < 0) {
+            obstacles.splice(index, 1);
+            score++;
+            scoreElement.innerText = score;
+        }
+    });
+
+    // Upgrades beheren
+    upgrades.forEach((upg, index) => {
+        upg.x -= 3;
+        if (player.x < upg.x + upg.width && player.x + player.width > upg.x &&
+            player.y < upg.y + upg.height && player.y + player.height > upg.y) {
+            upgrades.splice(index, 1);
+            applyUpgrade();
+        }
+    });
+}
+
+function applyUpgrade() {
+    upgradeLevel++;
+    player.speed += 1; // Speler wordt sneller
+    player.color = '#44FF44'; // Verander tijdelijk van kleur
+    setTimeout(() => player.color = '#FF4444', 500);
+    levelElement.innerText = upgradeLevel;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Teken Speler
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    // Vleugel detail
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(player.x + 10, player.y - 10, 10, 50);
+
+    // Teken Obstakels (Vogels/Wolken)
+    ctx.fillStyle = '#555';
+    obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.width, obs.height));
+
+    // Teken Upgrades (Gouden tandwielen)
+    ctx.fillStyle = '#FFD700';
+    upgrades.forEach(upg => {
+        ctx.beginPath();
+        ctx.arc(upg.x + 12, upg.y + 12, 12, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    if (gameActive) {
+        requestAnimationFrame(() => {
+            update();
+            draw();
+        });
+    }
+}
+
+function gameOver() {
+    gameActive = false;
+    alert(`Game Over! Score: ${score}. Je vliegtuig bereikte level ${upgradeLevel}!`);
+    location.reload();
+}
+
+draw();
